@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="学習チェック">
+<title>学習チェック</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #0f1117;
+    color: #e8eaf0;
+    font-family: 'Helvetica Neue', 'Hiragino Sans', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  button { font-family: inherit; }
+
+  /* ---- HEADER ---- */
+  .header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #16192a 100%);
+    border-bottom: 1px solid #2a2d3e;
+    padding: 52px 16px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-sub { font-size: 11px; color: #5a6080; letter-spacing: 2px; margin-bottom: 4px; }
+  .header-title { font-size: 20px; font-weight: 700; margin-bottom: 14px; }
+
+  /* ---- TABS ---- */
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab-btn {
+    flex: 1; padding: 10px 0; border-radius: 10px; border: none;
+    font-size: 13px; font-weight: 400; cursor: pointer;
+    transition: all 0.15s; background: #1e2235; color: #6070a0;
+  }
+  .tab-btn.active-main { background: #4f8ef7; color: #fff; font-weight: 700; }
+  .tab-btn.active-try  { background: #e53e6a; color: #fff; font-weight: 700; }
+
+  /* ---- CALENDAR ---- */
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-nav-btn {
+    background: #1e2235; border: none; color: #8090c0;
+    width: 32px; height: 32px; border-radius: 8px; font-size: 16px; cursor: pointer;
+  }
+  .cal-month { font-size: 15px; font-weight: 700; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 12px; }
+  .cal-dow { text-align: center; font-size: 10px; color: #4a5070; padding: 2px 0; }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 8px; border: none; background: #1a1d2e;
+    color: #6070a0; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  }
+  .cal-day.empty { background: transparent; cursor: default; }
+  .cal-day.today { border: 1px solid #4f8ef7; color: #4f8ef7; font-weight: 700; }
+  .cal-day.selected { background: #4f8ef7; color: #fff; font-weight: 700; }
+  .cal-day.has-checks { }
+  .cal-dot { width: 4px; height: 4px; border-radius: 50%; background: #38d968; }
+  .cal-day.selected .cal-dot { background: rgba(255,255,255,0.7); }
+
+  /* ---- WEEK CLEAR BAR ---- */
+  .week-bar {
+    border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+    background: rgba(79,142,247,0.08); border: 1px solid #2a2d3e;
+    transition: all 0.3s;
+  }
+  .week-bar.cleared { background: rgba(56,217,104,0.1); border-color: #38d968; }
+  .week-bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .week-bar-label { font-size: 12px; color: #8090c0; }
+  .week-bar.cleared .week-bar-label { color: #38d968; }
+  .week-bar-count { font-size: 18px; font-weight: 700; }
+  .week-bar.cleared .week-bar-count { color: #38d968; }
+  .week-bar-sub { font-size: 12px; font-weight: 400; color: #6070a0; }
+  .progress-track { height: 8px; background: #1e2235; border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; background: linear-gradient(90deg, #4f8ef7, #38b2f7); }
+  .progress-fill.cleared { background: linear-gradient(90deg, #38d968, #20c954); }
+
+  /* ---- DAY TABS ---- */
+  .day-tabs { display: flex; gap: 5px; }
+  .day-tab {
+    flex: 1; padding: 7px 0; border-radius: 8px; border: none;
+    font-size: 12px; cursor: pointer; transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: #1e2235; color: #6070a0;
+  }
+  .day-tab.active { background: #4f8ef7; color: #fff; font-weight: 700; }
+  .day-tab.active-try { background: #e53e6a; color: #fff; font-weight: 700; }
+  .day-tab-sub { font-size: 9px; }
+
+  /* ---- TRY BAR ---- */
+  .try-bar {
+    border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+    background: rgba(229,62,106,0.06); border: 1px solid #2a2d3e;
+  }
+  .try-bar.all-clear { background: rgba(229,62,106,0.12); border-color: #e53e6a; }
+  .try-dots { display: flex; gap: 4px; margin-bottom: 3px; }
+  .try-dot { flex: 1; height: 8px; border-radius: 4px; background: #1e2235; transition: background 0.2s; }
+  .try-dot.done { background: #e53e6a; }
+  .try-dow { display: flex; gap: 4px; }
+  .try-dow-label { flex: 1; text-align: center; font-size: 9px; color: #3a4060; }
+
+  /* ---- CONTENT ---- */
+  .content { padding: 16px 12px 0; }
+
+  .cat-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 0 4px; }
+  .cat-bar { width: 3px; height: 16px; border-radius: 2px; }
+  .cat-label { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
+  .cat-count { font-size: 11px; color: #3a4060; margin-left: auto; }
+  .subject-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+
+  .subject-btn {
+    display: flex; align-items: center; gap: 12; padding: 12px 14px;
+    background: #1a1d2e; border: 1px solid #1e2235;
+    border-radius: 12px; cursor: pointer; text-align: left;
+    transition: all 0.15s; width: 100%;
+  }
+  .subject-btn.checked { background: rgba(79,142,247,0.08); }
+  .subject-checkbox {
+    width: 22px; height: 22px; border-radius: 6px; border: 2px solid #2a2d3e;
+    background: transparent; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s; margin-right: 12px;
+  }
+  .subject-checkbox.checked { background: var(--cat-color); border-color: var(--cat-color); }
+  .subject-label { font-size: 14px; color: #c8d0e8; line-height: 1.4; transition: all 0.15s; }
+  .subject-label.checked { color: #8090c0; text-decoration: line-through; }
+
+  /* ---- TRY ITEMS ---- */
+  .try-list { display: flex; flex-direction: column; gap: 12px; }
+  .try-item {
+    display: flex; align-items: center; gap: 16px; padding: 20px;
+    background: #1a1d2e; border: 1px solid #1e2235;
+    border-radius: 16px; cursor: pointer; width: 100%;
+    transition: all 0.2s;
+  }
+  .try-item.checked { background: rgba(229,62,106,0.12); border-color: rgba(229,62,106,0.4); }
+  .try-emoji { font-size: 28px; }
+  .try-label { font-size: 18px; font-weight: 700; color: #c8d0e8; transition: all 0.2s; }
+  .try-item.checked .try-label { color: #e07090; text-decoration: line-through; }
+  .try-check {
+    margin-left: auto; width: 28px; height: 28px; border-radius: 8px;
+    border: 2px solid #2a2d3e; background: transparent;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .try-item.checked .try-check { background: #e53e6a; border-color: #e53e6a; }
+
+  /* ---- BACK BTN ---- */
+  .back-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: none; border: none; color: #4f8ef7; font-size: 14px;
+    cursor: pointer; margin-bottom: 12px; padding: 0;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-sub">週間学習チェック</div>
+  <div class="header-title" id="headerTitle">取り組むべきコンテンツ</div>
+  <div class="tabs">
+    <button class="tab-btn active-main" onclick="switchTab('main')" id="tabMain">📚 週間コンテンツ</button>
+    <button class="tab-btn" onclick="switchTab('try')" id="tabTry">⚡ TRY</button>
+  </div>
+  <div id="headerSub"></div>
+</div>
+
+<div class="content" id="appContent"></div>
+
+<script>
+const DAYS = ["月","火","水","木","金","土","日"];
+const SUBJECTS = [
+  { id: "eng1", label: "英語1T（解釈）", category: "英語" },
+  { id: "eng2", label: "英語2T（表現）", category: "英語" },
+  { id: "eng3", label: "英語3T（長文）", category: "英語" },
+  { id: "free_writing", label: "自由英作文", category: "英語" },
+  { id: "super_eng", label: "スーパー早慶大文系英語ゼミ", category: "英語" },
+  { id: "modern_jp", label: "現代文", category: "国語" },
+  { id: "classical_jp", label: "古文", category: "国語" },
+  { id: "kanbun", label: "漢文総合", category: "国語" },
+  { id: "world_hist", label: "世界史 講義・総合演習", category: "世界史" },
+  { id: "eng_grammar", label: "英文法・語法演習T", category: "英語" },
+  { id: "modern_jp_practice", label: "私大現代文実戦演習", category: "国語" },
+  { id: "classical_jp_practice", label: "私大古文実戦演習", category: "国語" },
+  { id: "vocab_eng", label: "英単語", category: "暗記" },
+  { id: "vocab_classical", label: "古文単語", category: "暗記" },
+  { id: "vocab_kanbun", label: "漢文単語", category: "暗記" },
+  { id: "vocab_history", label: "世界史暗記", category: "暗記" },
+];
+const CAT_COLORS = { "英語": "#38b2ac", "国語": "#9f7aea", "世界史": "#ed8936", "暗記": "#e53e6a" };
+const CLEAR_TARGET = 15;
+const STORAGE_KEY = "study_v3";
+const TRY_ITEMS = [
+  { key: "homework", label: "宿題", emoji: "📝" },
+  { key: "vocab", label: "単語", emoji: "📖" },
+  { key: "reading", label: "音読", emoji: "🔊" },
+];
+
+// State
+let tab = "main";
+let view = "calendar"; // "calendar" | "week"
+let calYear, calMonth;
+let selectedWeekId = null;
+let activeDay;
+
+const today = new Date();
+calYear = today.getFullYear();
+calMonth = today.getMonth();
+activeDay = today.getDay() === 0 ? 6 : today.getDay() - 1;
+
+function getWeekId(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function loadAll() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+}
+function loadChecks(weekId) {
+  const all = loadAll();
+  return all[weekId] || {};
+}
+function saveChecks(weekId, checks) {
+  const all = loadAll();
+  all[weekId] = checks;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+function toggleMain(subjectId, dayIdx) {
+  const wid = selectedWeekId;
+  const checks = loadChecks(wid);
+  const key = `main_${subjectId}_${dayIdx}`;
+  checks[key] = !checks[key];
+  saveChecks(wid, checks);
+  render();
+}
+function toggleTry(itemKey, dayIdx) {
+  const wid = selectedWeekId;
+  const checks = loadChecks(wid);
+  const key = `try_${itemKey}_${dayIdx}`;
+  checks[key] = !checks[key];
+  saveChecks(wid, checks);
+  render();
+}
+
+function switchTab(t) {
+  tab = t;
+  render();
+}
+
+function openWeek(weekId, day) {
+  selectedWeekId = weekId;
+  activeDay = (day !== undefined) ? day : 0;
+  view = "week";
+  render();
+}
+
+function backToCalendar() {
+  view = "calendar";
+  render();
+}
+
+function prevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } render(); }
+function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } render(); }
+
+function setActiveDay(i) { activeDay = i; render(); }
+
+// ---- SVG checkmark ----
+const CHECK_SVG = `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4L4.5 7.5L11 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CHECK_SVG_LG = `<svg width="14" height="10" viewBox="0 0 12 9" fill="none"><path d="M1 4L4.5 7.5L11 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+// ---- RENDER ----
+function render() {
+  // Tabs
+  document.getElementById("tabMain").className = "tab-btn" + (tab === "main" ? " active-main" : "");
+  document.getElementById("tabTry").className  = "tab-btn" + (tab === "try"  ? " active-try"  : "");
+
+  if (view === "calendar") {
+    renderCalendarView();
+  } else {
+    renderWeekView();
+  }
+}
+
+function renderCalendarView() {
+  document.getElementById("headerTitle").textContent = "取り組むべきコンテンツ";
+
+  // Build calendar header sub (no back btn)
+  const hSub = document.getElementById("headerSub");
+  hSub.innerHTML = `
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
+      <span class="cal-month">${calYear}年 ${calMonth + 1}月</span>
+      <button class="cal-nav-btn" onclick="nextMonth()">›</button>
+    </div>
+    <div class="cal-grid">
+      ${["日","月","火","水","木","金","土"].map(d => `<div class="cal-dow">${d}</div>`).join("")}
+      ${buildCalDays()}
+    </div>
+  `;
+
+  // Content: monthly summary
+  const all = loadAll();
+  const content = document.getElementById("appContent");
+
+  // Show weeks in this month
+  const weeks = getWeeksInMonth(calYear, calMonth);
+  let html = "";
+  for (const w of weeks) {
+    const checks = all[w.weekId] || {};
+    const weekTotal = tab === "main"
+      ? SUBJECTS.reduce((acc, s) => acc + DAYS.filter((_, i) => !!checks[`main_${s.id}_${i}`]).length, 0)
+      : 0;
+    const tryDone = DAYS.filter((_, i) => TRY_ITEMS.every(it => !!checks[`try_${it.key}_${i}`])).length;
+    const cleared = weekTotal >= CLEAR_TARGET;
+
+    html += `
+      <div onclick="openWeek('${w.weekId}')" style="
+        margin-bottom: 10px; padding: 14px 16px;
+        background: ${cleared && tab==='main' ? 'rgba(56,217,104,0.08)' : '#1a1d2e'};
+        border: 1px solid ${cleared && tab==='main' ? '#38d96840' : '#1e2235'};
+        border-radius: 14px; cursor: pointer;
+        display: flex; align-items: center; gap: 12px;
+      ">
+        <div style="flex:1">
+          <div style="font-size:12px; color:#5a6080; margin-bottom:4px;">${w.label}</div>
+          ${tab === "main" ? `
+            <div style="height:6px; background:#1e2235; border-radius:3px; overflow:hidden;">
+              <div style="height:100%; width:${Math.min(100, Math.round(weekTotal/CLEAR_TARGET*100))}%;
+                background:${cleared ? 'linear-gradient(90deg,#38d968,#20c954)' : 'linear-gradient(90deg,#4f8ef7,#38b2f7)'};
+                border-radius:3px;"></div>
+            </div>
+          ` : `
+            <div style="display:flex; gap:3px;">
+              ${DAYS.map((d,i) => {
+                const done = TRY_ITEMS.every(it => !!checks[`try_${it.key}_${i}`]);
+                return `<div style="flex:1; height:6px; border-radius:3px; background:${done ? '#e53e6a' : '#1e2235'};"></div>`;
+              }).join("")}
+            </div>
+          `}
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+          ${tab === "main"
+            ? `<span style="font-size:16px; font-weight:700; color:${cleared ? '#38d968' : '#fff'}">${weekTotal}</span><span style="font-size:11px; color:#4a5070">/${CLEAR_TARGET}</span>${cleared ? '<div style="font-size:10px;color:#38d968">CLEAR🎉</div>' : ''}`
+            : `<span style="font-size:16px; font-weight:700; color:${tryDone===7 ? '#e53e6a' : '#fff'}">${tryDone}</span><span style="font-size:11px; color:#4a5070">/7日</span>`
+          }
+        </div>
+        <div style="color:#3a4060; font-size:18px;">›</div>
+      </div>
+    `;
+  }
+  content.innerHTML = html || `<div style="color:#3a4060; text-align:center; padding:40px; font-size:14px;">この月のデータはありません</div>`;
+}
+
+function buildCalDays() {
+  const first = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const all = loadAll();
+  let html = "";
+
+  // Empty cells
+  for (let i = 0; i < first; i++) html += `<div class="cal-day empty"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(calYear, calMonth, d);
+    const wid = getWeekId(date);
+    const dayOfWeek = date.getDay(); // 0=Sun
+    const dayIdx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const checks = all[wid] || {};
+    const isToday = date.toDateString() === today.toDateString();
+
+    // Has any check on this day?
+    const hasMain = SUBJECTS.some(s => !!checks[`main_${s.id}_${dayIdx}`]);
+    const hasTry  = TRY_ITEMS.some(it => !!checks[`try_${it.key}_${dayIdx}`]);
+    const hasDot  = tab === "main" ? hasMain : hasTry;
+
+    const classes = ["cal-day", isToday ? "today" : "", hasDot ? "has-checks" : ""].filter(Boolean).join(" ");
+    html += `<div class="${classes}" onclick="openWeek('${wid}', ${dayIdx})">
+      <span>${d}</span>
+      ${hasDot ? '<div class="cal-dot"></div>' : '<div style="width:4px;height:4px;"></div>'}
+    </div>`;
+  }
+  return html;
+}
+
+function getWeeksInMonth(year, month) {
+  const weeks = [];
+  const seen = new Set();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const wid = getWeekId(date);
+    if (!seen.has(wid)) {
+      seen.add(wid);
+      // Find Mon-Sun range
+      const mon = new Date(wid);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+      weeks.push({ weekId: wid, label: `${fmt(mon)} 〜 ${fmt(sun)}` });
+    }
+  }
+  return weeks;
+}
+
+function renderWeekView() {
+  const checks = loadChecks(selectedWeekId);
+  const mon = new Date(selectedWeekId);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  document.getElementById("headerTitle").textContent = `${fmt(mon)} 〜 ${fmt(sun)}`;
+
+  // Header sub
+  const hSub = document.getElementById("headerSub");
+
+  if (tab === "main") {
+    const weekTotal = SUBJECTS.reduce((acc, s) => acc + DAYS.filter((_, i) => !!checks[`main_${s.id}_${i}`]).length, 0);
+    const cleared = weekTotal >= CLEAR_TARGET;
+    const pct = Math.min(100, Math.round(weekTotal / CLEAR_TARGET * 100));
+    hSub.innerHTML = `
+      <button class="back-btn" onclick="backToCalendar()">‹ カレンダーに戻る</button>
+      <div class="week-bar ${cleared ? 'cleared' : ''}">
+        <div class="week-bar-top">
+          <span class="week-bar-label">${cleared ? '🎉 週間クリア達成！' : `週間クリア目標：${CLEAR_TARGET}個`}</span>
+          <span class="week-bar-count">${weekTotal}<span class="week-bar-sub">/${CLEAR_TARGET}</span></span>
+        </div>
+        <div class="progress-track"><div class="progress-fill ${cleared ? 'cleared' : ''}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="day-tabs">
+        ${DAYS.map((d, i) => {
+          const done = SUBJECTS.filter(s => !!checks[`main_${s.id}_${i}`]).length;
+          return `<button class="day-tab ${i === activeDay ? 'active' : ''}" onclick="setActiveDay(${i})">
+            <span>${d}</span><span class="day-tab-sub">${done}</span>
+          </button>`;
+        }).join("")}
+      </div>
+    `;
+  } else {
+    const tryDaysDone = DAYS.filter((_, i) => TRY_ITEMS.every(it => !!checks[`try_${it.key}_${i}`])).length;
+    const allClear = tryDaysDone >= 7;
+    hSub.innerHTML = `
+      <button class="back-btn" onclick="backToCalendar()">‹ カレンダーに戻る</button>
+      <div class="try-bar ${allClear ? 'all-clear' : ''}">
+        <div class="week-bar-top">
+          <span class="week-bar-label" style="color:${allClear ? '#e53e6a' : '#8090c0'}">${allClear ? '🔥 全日クリア！' : '毎日3つクリアしよう'}</span>
+          <span class="week-bar-count" style="color:${allClear ? '#e53e6a' : '#fff'}">${tryDaysDone}<span class="week-bar-sub">/7日</span></span>
+        </div>
+        <div class="try-dots">${DAYS.map((_, i) => {
+          const done = TRY_ITEMS.every(it => !!checks[`try_${it.key}_${i}`]);
+          return `<div class="try-dot ${done ? 'done' : ''}"></div>`;
+        }).join("")}</div>
+        <div class="try-dow">${DAYS.map(d => `<div class="try-dow-label">${d}</div>`).join("")}</div>
+      </div>
+      <div class="day-tabs">
+        ${DAYS.map((d, i) => {
+          const done = TRY_ITEMS.every(it => !!checks[`try_${it.key}_${i}`]);
+          return `<button class="day-tab ${i === activeDay ? 'active-try' : (done ? 'done-try' : '')}" onclick="setActiveDay(${i})" style="${done && i !== activeDay ? 'background:rgba(229,62,106,0.15);color:#e53e6a;' : ''}">
+            <span>${d}</span><span class="day-tab-sub">${done ? '✓' : '・'}</span>
+          </button>`;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  // Content
+  const content = document.getElementById("appContent");
+  if (tab === "main") {
+    const categories = [...new Set(SUBJECTS.map(s => s.category))];
+    content.innerHTML = categories.map(cat => {
+      const items = SUBJECTS.filter(s => s.category === cat);
+      const color = CAT_COLORS[cat] || "#4f8ef7";
+      const catDone = items.filter(s => !!checks[`main_${s.id}_${activeDay}`]).length;
+      return `
+        <div class="cat-header">
+          <div class="cat-bar" style="background:${color}"></div>
+          <span class="cat-label" style="color:${color}">${cat}</span>
+          <span class="cat-count">${catDone}/${items.length}</span>
+        </div>
+        <div class="subject-list">
+          ${items.map(s => {
+            const checked = !!checks[`main_${s.id}_${activeDay}`];
+            return `<button class="subject-btn ${checked ? 'checked' : ''}" onclick="toggleMain('${s.id}', ${activeDay})" style="${checked ? `border-color:${color}40` : ''}">
+              <div class="subject-checkbox ${checked ? 'checked' : ''}" style="--cat-color:${color}">
+                ${checked ? CHECK_SVG : ''}
+              </div>
+              <span class="subject-label ${checked ? 'checked' : ''}">${s.label}</span>
+            </button>`;
+          }).join("")}
+        </div>
+      `;
+    }).join("");
+  } else {
+    content.innerHTML = `<div class="try-list">
+      ${TRY_ITEMS.map(item => {
+        const checked = !!checks[`try_${item.key}_${activeDay}`];
+        return `<button class="try-item ${checked ? 'checked' : ''}" onclick="toggleTry('${item.key}', ${activeDay})">
+          <span class="try-emoji">${item.emoji}</span>
+          <span class="try-label">${item.label}</span>
+          <div class="try-check">${checked ? CHECK_SVG_LG : ''}</div>
+        </button>`;
+      }).join("")}
+    </div>`;
+  }
+}
+
+// Init
+selectedWeekId = getWeekId(today);
+render();
+</script>
+</body>
+</html>
