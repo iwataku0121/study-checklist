@@ -191,7 +191,29 @@ button { font-family: inherit; }
 
 <script>
 const DAYS = ["月","火","水","木","金","土","日"];
-const CAT_COLORS = { "英語": "#38b2ac", "国語": "#9f7aea", "世界史": "#ed8936", "暗記": "#e53e6a" };
+const DEFAULT_CAT_COLORS = { "英語": "#38b2ac", "国語": "#9f7aea", "世界史": "#ed8936", "暗記": "#e53e6a" };
+const COLOR_PALETTE = ["#38b2ac","#9f7aea","#ed8936","#e53e6a","#4f8ef7","#38d968","#f6ad55","#fc8181","#68d391","#76e4f7"];
+function getCatColors() { const all = loadAll(); return all._catColors || {...DEFAULT_CAT_COLORS}; }
+function saveCatColors(c) { const all = loadAll(); all._catColors = c; saveAll(all); }
+function addCategory() {
+  const input = document.getElementById("newCatLabel");
+  const label = input.value.trim();
+  if (!label) return;
+  const colors = getCatColors();
+  if (colors[label]) return;
+  const used = Object.values(colors);
+  colors[label] = COLOR_PALETTE.find(c => !used.includes(c)) || COLOR_PALETTE[0];
+  saveCatColors(colors);
+  input.value = "";
+  render();
+}
+function deleteCategory(cat) {
+  const colors = getCatColors();
+  delete colors[cat];
+  saveCatColors(colors);
+  saveSubjects(getSubjects().filter(s => s.category !== cat));
+  render();
+}
 const CLEAR_TARGET = 15;
 const STORAGE_KEY = "study_v4";
 
@@ -357,12 +379,12 @@ function renderEditView() {
   document.getElementById("headerSub").innerHTML = "";
   const subjects = getSubjects();
   const tryItems = getTryItems();
-  const cats = Object.keys(CAT_COLORS);
+  const cats = Object.keys(getCatColors());
 
   // Group subjects by category
   const categories = [...new Set(subjects.map(s => s.category))];
   let subjectListHTML = categories.map(cat => {
-    const color = CAT_COLORS[cat] || "#4f8ef7";
+    const color = getCatColors()[cat] || "#4f8ef7";
     const items = subjects.filter(s => s.category === cat);
     return `
       <div style="margin-bottom:4px; font-size:11px; color:${color}; padding: 0 4px; margin-top:10px;">${cat}</div>
@@ -375,8 +397,30 @@ function renderEditView() {
     `;
   }).join("");
 
-  const content = document.getElementById("appContent");
-  content.innerHTML = `
+  const catColors = getCatColors();
+  const catListHTML = Object.keys(catColors).map(cat => {
+    const color = catColors[cat];
+    return `<div class="edit-item">
+      <div style="width:12px;height:12px;border-radius:3px;background:${color};flex-shrink:0;"></div>
+      <span class="edit-item-label" style="margin-left:8px;">${cat}</span>
+      <button class="edit-delete-btn" onclick="deleteCategory('${cat}')">×</button>
+    </div>`;
+  }).join("");
+
+  const appContent = document.getElementById("appContent");
+  appContent.innerHTML = `
+    <div class="edit-section">
+      <div class="edit-section-title">
+        <div style="width:3px;height:16px;background:#4f8ef7;border-radius:2px;"></div>
+        🏷️ カテゴリ
+      </div>
+      <div class="edit-list">${catListHTML}</div>
+      <div class="add-row">
+        <input class="add-input" id="newCatLabel" placeholder="カテゴリ名を入力" />
+        <button class="add-btn" style="background:#4f8ef7" onclick="addCategory()">+</button>
+      </div>
+    </div>
+
     <div class="edit-section">
       <div class="edit-section-title">
         <div style="width:3px;height:16px;background:#9f7aea;border-radius:2px;"></div>
@@ -543,7 +587,7 @@ function renderWeekView() {
     const categories = [...new Set(subjects.map(s => s.category))];
     document.getElementById("appContent").innerHTML = categories.map(cat => {
       const items = subjects.filter(s => s.category === cat);
-      const color = CAT_COLORS[cat] || "#4f8ef7";
+      const color = getCatColors()[cat] || "#4f8ef7";
       const catDone = items.filter(s => !!checks[`main_${s.id}_${activeDay}`]).length;
       return `
         <div class="cat-header">
