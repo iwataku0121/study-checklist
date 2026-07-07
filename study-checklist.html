@@ -332,6 +332,18 @@ function toggleTry(itemKey, dayIdx) {
   render();
 }
 
+// Memo
+function getMemo(weekId, dayIdx) {
+  const all = loadAll();
+  return (all[weekId] || {})["memo_" + dayIdx] || "";
+}
+function saveMemo(weekId, dayIdx, text) {
+  const all = loadAll();
+  if (!all[weekId]) all[weekId] = {};
+  all[weekId]["memo_" + dayIdx] = text;
+  saveAll(all);
+}
+
 // Edit: subjects
 function deleteSubject(id) {
   const subjects = getSubjects().filter(s => s.id !== id);
@@ -645,8 +657,9 @@ function renderWeekView() {
         }).join("")}
       </div>`;
 
+    const memoVal = getMemo(selectedWeekId, activeDay);
     const categories = [...new Set(subjects.map(s => s.category))];
-    document.getElementById("appContent").innerHTML = categories.map(cat => {
+    const subjectHTML = categories.map(cat => {
       const items = subjects.filter(s => s.category === cat);
       const color = getCatColors()[cat] || "#4f8ef7";
       const catDone = items.filter(s => !!checks[`main_${s.id}_${activeDay}`]).length;
@@ -668,6 +681,21 @@ function renderWeekView() {
           }).join("")}
         </div>`;
     }).join("");
+    document.getElementById("appContent").innerHTML = subjectHTML + `
+      <div style="margin-top:8px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 4px;">
+          <div style="width:3px;height:16px;background:#5a6080;border-radius:2px;"></div>
+          <span style="font-size:12px;font-weight:600;color:#5a6080;letter-spacing:0.5px;">📝 メモ</span>
+        </div>
+        <textarea id="dayMemo" placeholder="今日やったことや気づきを書こう..."
+          style="width:100%;min-height:90px;padding:12px 14px;background:#1a1d2e;border:1px solid #1e2235;
+          border-radius:12px;color:#c8d0e8;font-size:14px;line-height:1.6;resize:none;outline:none;
+          font-family:inherit;box-sizing:border-box;"
+          onfocus="this.style.borderColor='#5a6080'"
+          onblur="this.style.borderColor='#1e2235';saveMemo('${selectedWeekId}',${activeDay},this.value)"
+        >${memoVal}</textarea>
+      </div>
+    `;
 
   } else {
     const tryDaysDone = DAYS.filter((_,i) => tryItems.every(it => !!checks[`try_${it.key}_${i}`])).length;
